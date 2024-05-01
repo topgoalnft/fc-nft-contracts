@@ -1,0 +1,22 @@
+node_modules
+.env
+
+# Hardhat files
+/cache
+/artifacts
+
+# TypeChain files
+/typechain
+/typechain-types
+
+# solidity-coverage files
+/coverage
+/coverage.json
+
+.openzeppelin
+.DS_Store
+env.example
+package-lock.json
+Deploy.md
+Memo.md
+scripts
