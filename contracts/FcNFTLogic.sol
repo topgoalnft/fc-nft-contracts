@@ -20,7 +20,8 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 amount
     );
     event FcNFTMintEvent(
-        uint256 orderId
+        uint256 orderId,
+        uint256[] tokenIds
     );
     event FcNFTSetItemIdEvent(
         uint256 orderId
@@ -32,7 +33,8 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 orderId
     );
     event FusionFcNFTEvent(
-        uint256 orderId
+        uint256 orderId,
+        uint256[] tokenIds
     );
 
     struct PayInfo {
@@ -155,10 +157,11 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         if (payInfo.amount > 0) {
             payToken(payInfo.tokenAddress, payInfo.amount, payInfo.orderId);
         }
+        uint256[] memory tokenIds = new uint256[](count);
         for (uint32 i = 0; i < count; i++) {
-            IFcNFT(nft).mintFcNFTByLogic(owner, itemId, safe);
+            tokenIds[i] = IFcNFT(nft).mintFcNFTByLogic(owner, itemId, safe);
         }
-        emit FcNFTMintEvent(payInfo.orderId);
+        emit FcNFTMintEvent(payInfo.orderId, tokenIds);
     }
 
     function batchMintFcNft(BatchMintFcNFT[] calldata nfts) external onlyOwner {
@@ -333,15 +336,18 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         {
             fusionRevert(revertNfts, revertFrom, revertTo);
         }
+        uint256[] memory tokenIds = new uint256[](items.length);
         if (items.length > 0) {
             for (uint32 i = 0; i < items.length; i++) {
                 address nft = items[i].nft;
                 string memory itemId = items[i].itemId;
                 if (bytes(itemId).length > 0) {
-                    IFcNFT(nft).mintFcNFTByLogic(owner, itemId, safe);
+                    tokenIds[i] = IFcNFT(nft).mintFcNFTByLogic(owner, itemId, safe);
+                } else {
+                    tokenIds[i] = 0;
                 }
             }
         }
-        emit FusionFcNFTEvent(payInfo.orderId);
+        emit FusionFcNFTEvent(payInfo.orderId, tokenIds);
     }
 }
