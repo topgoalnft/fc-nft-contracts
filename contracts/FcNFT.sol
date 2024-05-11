@@ -74,6 +74,7 @@ contract FcNFT is Initializable, ERC721Upgradeable, UUPSUpgradeable, OwnableUpgr
     }
 
     function setDepositAddress(address addr) external onlyOwner {
+        require(addr != address(0), "Deposit address should not be 0");
         depositAddress = addr;
         emit SetDepositAddrEvent(addr);
     }

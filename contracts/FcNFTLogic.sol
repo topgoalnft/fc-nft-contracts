@@ -2,6 +2,7 @@
 pragma solidity ^0.8.16;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -10,7 +11,8 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./IFcNFT.sol";
 
 contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
-
+    using SafeERC20 for IERC20;
+    
     event SetSignerEvent(address signer);
     event EmergencyWithdrawn(address indexed to, address indexed token, uint256 amount);
     event OrderPaymentEvent(
@@ -83,6 +85,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     // Emergency withdrawal
     function emergencyWithdraw(address token, address to,  uint256 amount) external onlyOwner {
+        require(to != address(0), "To address should not be 0");
         if (token == address(0)) {
             payable(to).transfer(amount);
         } else {
@@ -110,7 +113,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         IERC20 tokenContract = IERC20(tokenAddr);
         uint256 allowance = tokenContract.allowance(_msgSender(), address(this));
         require(allowance >= amount, "Check the token allowance");
-        tokenContract.transferFrom(_msgSender(), address(this), amount);
+        tokenContract.safeTransferFrom(_msgSender(), address(this), amount);
         emit OrderPaymentEvent(tokenAddr, orderId, _msgSender(), amount);
     }
 
