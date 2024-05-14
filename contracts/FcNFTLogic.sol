@@ -12,8 +12,9 @@ import "./IFcNFT.sol";
 
 contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
-    
+
     event SetSignerEvent(address signer);
+    event SetAdminEvent(address admin);
     event EmergencyWithdrawn(address indexed to, address indexed token, uint256 amount);
     event OrderPaymentEvent(
         address indexed tokenAddress,
@@ -44,6 +45,10 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 amount;
         uint256 orderId;
     }
+    struct TokenReward {
+        address token;
+        uint256 amount;
+    }
     struct BatchMintFcNFT {
         address nft;
         string itemId;
@@ -61,6 +66,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     address internal signer;
+    address internal admin;
     mapping(bytes => bool) internal signUsed;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -74,6 +80,14 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         signer = _msgSender();
     }
 
+    modifier onlyOwnerOrAdmin() {
+        require(
+            (owner() == _msgSender() || admin == _msgSender()),
+            "Caller is not the owner or admins"
+        );
+        _;
+    }
+
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyOwner {}
@@ -83,15 +97,24 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit SetSignerEvent(addr);
     }
 
-    // Emergency withdrawal
-    function emergencyWithdraw(address token, address to,  uint256 amount) external onlyOwner {
+    function setAdmin(address addr) external onlyOwner {
+        require(addr != address(0), "admin address should not be 0");
+        admin = addr;
+        emit SetAdminEvent(addr);
+    }
+
+    function _transferToken(address token, address to, uint256 amount) internal {
         require(to != address(0), "To address should not be 0");
         if (token == address(0)) {
             payable(to).transfer(amount);
         } else {
             require(IERC20(token).transfer(to, amount), "Token transfer failed");
         }
+    }
 
+    // Emergency withdrawal
+    function emergencyWithdraw(address token, address to,  uint256 amount) external onlyOwner {
+        _transferToken(token, to, amount);
         emit EmergencyWithdrawn(to, token, amount);
     }
 
@@ -125,6 +148,10 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         );
     }
 
+    function encodeTokenRewards(TokenReward[] calldata rewards) internal pure returns (bytes memory) {
+        return abi.encode(rewards);
+    }
+
     function verifySign(bytes memory sign, bytes32 msgHash) internal {
         address recoveredSigner = ECDSA.recover(msgHash, sign);
         require(
@@ -139,6 +166,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         string memory itemId,
         uint32 count,
         address owner,
+        TokenReward[] calldata rewards,
         bool safe,
         PayInfo calldata payInfo,
         bytes memory sign) external payable {
@@ -150,6 +178,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
                     itemId,
                     count,
                     owner,
+                    encodeTokenRewards(rewards),
                     encodePayInfo(payInfo),
                     block.chainid,
                     address(this)
@@ -164,10 +193,15 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         for (uint32 i = 0; i < count; i++) {
             tokenIds[i] = IFcNFT(nft).mintFcNFTByLogic(owner, itemId, safe);
         }
+        if (rewards.length > 0) {
+            for (uint32 i = 0; i < rewards.length; i++) {
+                _transferToken(rewards[i].token, owner, rewards[i].amount);
+            }
+        }
         emit FcNFTMintEvent(payInfo.orderId, tokenIds);
     }
 
-    function batchMintFcNft(BatchMintFcNFT[] calldata nfts) external onlyOwner {
+    function batchMintFcNft(BatchMintFcNFT[] calldata nfts) external onlyOwnerOrAdmin {
         for (uint32 i = 0; i < nfts.length; i++) {
             if (nfts[i].count > 0) {
                 for (uint32 j = 0; j < nfts[i].count; j++) {
@@ -306,6 +340,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         address revertFrom,
         address revertTo,
         FusionMintItem[] calldata items,
+        TokenReward[] calldata rewards,
         bool safe,
         PayInfo calldata payInfo,
         bytes memory sign
@@ -322,6 +357,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
                     revertFrom,
                     revertTo,
                     encodedItems,
+                    encodeTokenRewards(rewards),
                     encodePayInfo(payInfo),
                     block.chainid,
                     address(this)
@@ -349,6 +385,11 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
                 } else {
                     tokenIds[i] = 0;
                 }
+            }
+        }
+        if (rewards.length > 0) {
+            for (uint32 i = 0; i < rewards.length; i++) {
+                _transferToken(rewards[i].token, owner, rewards[i].amount);
             }
         }
         emit FusionFcNFTEvent(payInfo.orderId, tokenIds);
