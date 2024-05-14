@@ -108,7 +108,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         if (token == address(0)) {
             payable(to).transfer(amount);
         } else {
-            require(IERC20(token).transfer(to, amount), "Token transfer failed");
+            IERC20(token).safeTransfer(to, amount);
         }
     }
 
