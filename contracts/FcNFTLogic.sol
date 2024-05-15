@@ -15,6 +15,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     event SetSignerEvent(address signer);
     event SetAdminEvent(address admin);
+    event SetTokenTransferLimitEvent(address token, uint256 limit);
     event EmergencyWithdrawn(address indexed to, address indexed token, uint256 amount);
     event OrderPaymentEvent(
         address indexed tokenAddress,
@@ -68,6 +69,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     address internal signer;
     address internal admin;
     mapping(bytes => bool) internal signUsed;
+    mapping(address => uint256) internal tokenTransferLimit;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -103,6 +105,11 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit SetAdminEvent(addr);
     }
 
+    function setTokenTransferLimit(address token, uint256 limit) external onlyOwnerOrAdmin {
+        tokenTransferLimit[token] = limit;
+        emit SetTokenTransferLimitEvent(token, limit);
+    }
+
     function _transferToken(address token, address to, uint256 amount) internal {
         require(to != address(0), "To address should not be 0");
         if (token == address(0)) {
@@ -116,6 +123,11 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function emergencyWithdraw(address token, address to,  uint256 amount) external onlyOwner {
         _transferToken(token, to, amount);
         emit EmergencyWithdrawn(to, token, amount);
+    }
+
+    function transferToken(address token, address to, uint256 amount) internal {
+        require(tokenTransferLimit[token] == 0 || amount <= tokenTransferLimit[token], "Exceed the token transfer limit");
+        _transferToken(token, to, amount);
     }
 
     function payToken(address tokenAddr, uint256 amount, uint256 orderId) public payable virtual {
@@ -195,7 +207,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
         if (rewards.length > 0) {
             for (uint32 i = 0; i < rewards.length; i++) {
-                _transferToken(rewards[i].token, owner, rewards[i].amount);
+                transferToken(rewards[i].token, owner, rewards[i].amount);
             }
         }
         emit FcNFTMintEvent(payInfo.orderId, tokenIds);
@@ -389,7 +401,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
         if (rewards.length > 0) {
             for (uint32 i = 0; i < rewards.length; i++) {
-                _transferToken(rewards[i].token, owner, rewards[i].amount);
+                transferToken(rewards[i].token, owner, rewards[i].amount);
             }
         }
         emit FusionFcNFTEvent(payInfo.orderId, tokenIds);
