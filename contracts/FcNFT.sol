@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -8,9 +9,11 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./IFcNFT.sol";
 
 contract FcNFT is Initializable, ERC721Upgradeable, UUPSUpgradeable, OwnableUpgradeable, IFcNFT {
+    using Address for address;
 
     event SetLogicAddrEvent(address addr);
     event SetDepositAddrEvent(address addr);
+    event SetAllowListEvent(address addr, bool isAllow);
     event SetBaseURIEvent(string addr);
     event BurnEvent(uint256 _val);
     event MintFcNFT(
@@ -40,6 +43,10 @@ contract FcNFT is Initializable, ERC721Upgradeable, UUPSUpgradeable, OwnableUpgr
     address internal logicContract;
     address internal depositAddress;
     string internal _baseTokenURI;
+
+    // contract sender allow list
+    mapping(address => bool) public senderAllowlist;
+
     mapping(uint256 => address) internal depositedFcNfts;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -77,6 +84,12 @@ contract FcNFT is Initializable, ERC721Upgradeable, UUPSUpgradeable, OwnableUpgr
         require(addr != address(0), "Deposit address should not be 0");
         depositAddress = addr;
         emit SetDepositAddrEvent(addr);
+    }
+    
+    function setAllowList(address addr, bool isAllow) external onlyOwner {
+        require(addr .isContract(), "Address should be contract");
+        senderAllowlist[addr] = isAllow;
+        emit SetAllowListEvent(addr, isAllow);
     }
 
     function setBaseURI(string calldata value) external onlyOwner {
@@ -145,6 +158,13 @@ contract FcNFT is Initializable, ERC721Upgradeable, UUPSUpgradeable, OwnableUpgr
 
     function setItemIdByOwner(uint256 tokenId, string memory itemId) external onlyOwner {
         _setItemId(tokenId, itemId);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize) override internal {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+        if((_msgSender()).isContract()) {
+            require(senderAllowlist[_msgSender()], "Sender is not in allowlist");
+        }
     }
 
     function _afterTokenTransfer(address from, address to, uint256 firstTokenId, uint256) override internal {

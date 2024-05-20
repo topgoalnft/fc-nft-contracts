@@ -45,6 +45,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         address tokenAddress;
         uint256 amount;
         uint256 orderId;
+        uint64  expireTime;
     }
     struct TokenReward {
         address token;
@@ -156,7 +157,8 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return abi.encodePacked(
             payInfo.tokenAddress,
             payInfo.amount,
-            payInfo.orderId
+            payInfo.orderId,
+            payInfo.expireTime
         );
     }
 
@@ -198,6 +200,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             )
         );
         verifySign(sign, msgHash);
+        require(payInfo.expireTime == 0 || block.timestamp < payInfo.expireTime, "This order is expired");
         if (payInfo.amount > 0) {
             payToken(payInfo.tokenAddress, payInfo.amount, payInfo.orderId);
         }
@@ -246,6 +249,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             )
         );
         verifySign(sign, msgHash);
+        require(payInfo.expireTime == 0 || block.timestamp < payInfo.expireTime, "This order is expired");
         if (payInfo.amount > 0) {
             payToken(payInfo.tokenAddress, payInfo.amount, payInfo.orderId);
         }
@@ -275,6 +279,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             )
         );
         verifySign(sign, msgHash);
+        require(payInfo.expireTime == 0 || block.timestamp < payInfo.expireTime, "This order is expired");
         if (payInfo.amount > 0) {
             payToken(payInfo.tokenAddress, payInfo.amount, payInfo.orderId);
         }
@@ -335,6 +340,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             )
         );
         verifySign(sign, msgHash);
+        require(payInfo.expireTime == 0 || block.timestamp < payInfo.expireTime, "This order is expired");
         if (payInfo.amount > 0) {
             payToken(payInfo.tokenAddress, payInfo.amount, payInfo.orderId);
         }
@@ -377,6 +383,7 @@ contract FcNFTLogic is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             )
         );
         verifySign(sign, msgHash);
+        require(payInfo.expireTime == 0 || block.timestamp < payInfo.expireTime, "This order is expired");
         if (payInfo.amount > 0) {
             payToken(payInfo.tokenAddress, payInfo.amount, payInfo.orderId);
         }
